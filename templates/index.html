@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bookshelf Catalog</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"/>
+</head>
+<body>
+  <div class="container">
+    <div class="header-flex">
+  <img src="{{ url_for('static', filename='logo.png') }}" alt="Bookshelf Catalog Logo" class="logo-inline" />
+  <h1 class="title-inline">Bookshelf Catalog</h1>
+  </div>
+
+    <div class="instructions">
+  <h3>How to use this tool:</h3>
+  <ol>
+    <li>Upload images of your old and new bookshelf layouts.</li>
+  <li>Click on a detected book spine in the old bookshelf image to search for that book in the new layout.</li>
+  <li>The system will highlight the matching book in the new bookshelf image.</li>
+
+  </ol>
+
+  <div class="note-box">
+    <strong>Important Note:</strong> Make sure your uploaded bookshelf images are taken at a clear angle where all book spines are fully visible, ideally perpendicular to the shelf surface.
+  </div>
+</div>
+
+
+    <div class="upload-section">
+      <div class="upload-box">
+        <h3>Old Bookshelf Design</h3>
+        <input type="file" id="oldImage" accept="image/*" />
+      </div>
+      <div class="upload-box">
+        <h3>New Bookshelf Design</h3>
+        <input type="file" id="newImage" accept="image/*" />
+      </div>
+    </div>
+
+    <button id="processBtn">
+      <span id="processBtnText">Process Images</span>
+      <div id="processSpinner" class="spinner" style="display: none;"></div>
+    </button>
+
+    <div class="image-display">
+      <div class="image-container" id="oldImageContainer">
+        <img id="oldImageDisplay" onload="updateImageScales()" />
+        <div id="oldBooksOverlay"></div>
+        <div class="loading-overlay" id="oldImageLoading">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+      <div class="image-container" id="newImageContainer">
+        <img id="newImageDisplay" onload="updateImageScales()" />
+        <div id="matchOverlay"></div>
+        <div class="loading-overlay" id="newImageLoading">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-section" id="resultsSection" style="display: none;">
+      <h2>Matching Results</h2>
+      <div class="result-item">
+        <span class="result-title">Total Books Detected:</span>
+        <span class="result-value" id="totalBooks">0</span>
+      </div>
+      <div class="result-item">
+        <span class="result-title">Match Confidence:</span>
+        <span class="result-value" id="matchScore">0</span>
+      </div>
+      <div id="lowConfidenceWarning" class="warning-message">
+        Match confidence is low, result may be inaccurate
+      </div>
+    </div>
+  </div>
+
+  <script>
+  let oldBooks = [];
+  let newBooks = [];
+  let currentSelection = null;
+  let oldImagePath = '';
+  let newImagePath = '';
+  let oldImgScale = { width: 1, height: 1 };
+  let newImgScale = { width: 1, height: 1 };
+  let selectedHighlight = null;
+
+  function updateImageScales() {
+    const oldImg = document.getElementById('oldImageDisplay');
+    const newImg = document.getElementById('newImageDisplay');
+
+    if (oldImg.naturalWidth && oldImg.naturalHeight) {
+      oldImgScale.width = oldImg.naturalWidth / oldImg.width;
+      oldImgScale.height = oldImg.naturalHeight / oldImg.height;
+    }
+
+    if (newImg.naturalWidth && newImg.naturalHeight) {
+      newImgScale.width = newImg.naturalWidth / newImg.width;
+      newImgScale.height = newImg.naturalHeight / newImg.height;
+    }
+
+    if (oldBooks.length > 0) drawBookHighlights();
+  }
+
+  function drawBookHighlights() {
+    const oldOverlay = document.getElementById('oldBooksOverlay');
+    oldOverlay.innerHTML = '';
+
+    oldBooks.forEach(book => {
+      const bookDiv = document.createElement('div');
+      bookDiv.className = 'book-highlight';
+      bookDiv.style.left = `${book.x1 / oldImgScale.width}px`;
+      bookDiv.style.top = `${book.y1 / oldImgScale.height}px`;
+      bookDiv.style.width = `${(book.x2 - book.x1) / oldImgScale.width}px`;
+      bookDiv.style.height = `${(book.y2 - book.y1) / oldImgScale.height}px`;
+      bookDiv.dataset.bookId = book.id;
+
+      bookDiv.addEventListener('click', () => selectBook(book));
+
+      if (currentSelection && book.id === currentSelection.id) {
+        bookDiv.classList.add('selected');
+        selectedHighlight = bookDiv;
+      }
+
+      oldOverlay.appendChild(bookDiv);
+    });
+  }
+
+  document.getElementById('processBtn').addEventListener('click', async () => {
+    const oldFile = document.getElementById('oldImage').files[0];
+    const newFile = document.getElementById('newImage').files[0];
+
+    if (!oldFile || !newFile) {
+      alert('Please upload both images');
+      return;
+    }
+
+    // Reset UI
+    if (selectedHighlight) selectedHighlight.classList.remove('selected');
+    currentSelection = null;
+    selectedHighlight = null;
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('matchOverlay').innerHTML = '';
+    document.getElementById('lowConfidenceWarning').style.display = 'none';
+
+    document.getElementById('oldImageLoading').classList.add('active');
+    document.getElementById('newImageLoading').classList.add('active');
+    const processBtn = document.getElementById('processBtn');
+    processBtn.disabled = true;
+    document.getElementById('processBtnText').textContent = 'Processing...';
+    document.getElementById('processSpinner').style.display = 'block';
+
+    const formData = new FormData();
+    formData.append('old_image', oldFile);
+    formData.append('new_image', newFile);
+
+    try {
+      const response = await fetch('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      oldImagePath = data.old_image;
+      newImagePath = data.new_image;
+      oldBooks = data.books || [];
+      newBooks = data.new_books || [];
+      window.totalOldBooks = data.old_book_count;
+
+      document.getElementById('oldImageDisplay').src = oldImagePath;
+      document.getElementById('newImageDisplay').src = newImagePath;
+
+      if (document.getElementById('oldImageDisplay').complete && document.getElementById('newImageDisplay').complete) {
+        updateImageScales();
+      }
+    } catch (error) {
+      console.error(error);
+      alert('An error occurred while processing the images.');
+    } finally {
+      processBtn.disabled = false;
+      document.getElementById('oldImageLoading').classList.remove('active');
+      document.getElementById('newImageLoading').classList.remove('active');
+      document.getElementById('processBtnText').textContent = 'Process Images';
+      document.getElementById('processSpinner').style.display = 'none';
+    }
+  });
+
+  async function selectBook(book) {
+    document.getElementById('newImageLoading').classList.add('active');
+    document.getElementById('lowConfidenceWarning').style.display = 'none';
+
+    document.querySelectorAll('.book-highlight').forEach(el => el.classList.remove('selected'));
+
+    currentSelection = book;
+    const matchedDiv = document.querySelector(`.book-highlight[data-book-id="${book.id}"]`);
+    if (matchedDiv) {
+      matchedDiv.classList.add('selected');
+      selectedHighlight = matchedDiv;
+    }
+
+    try {
+      const response = await fetch('/find_match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          old_image: oldImagePath,
+          new_image: newImagePath,
+          selected_book: book,
+          new_books: newBooks
+        })
+      });
+
+      const data = await response.json();
+
+      const resultsSection = document.getElementById('resultsSection');
+      resultsSection.style.display = 'block';
+      document.getElementById('totalBooks').textContent = window.totalOldBooks ;
+      document.getElementById('matchScore').textContent = data.match_score;
+
+      if (data.low_confidence || data.match_score < 10) {
+        document.getElementById('lowConfidenceWarning').style.display = 'flex';
+      }
+
+      const matchOverlay = document.getElementById('matchOverlay');
+      matchOverlay.innerHTML = '';
+
+      if (data.best_match) {
+        const match = data.best_match;
+        const matchDiv = document.createElement('div');
+        matchDiv.className = 'match-highlight';
+        matchDiv.style.left = `${match.x1 / newImgScale.width}px`;
+        matchDiv.style.top = `${match.y1 / newImgScale.height}px`;
+        matchDiv.style.width = `${(match.x2 - match.x1) / newImgScale.width}px`;
+        matchDiv.style.height = `${(match.y2 - match.y1) / newImgScale.height}px`;
+        matchOverlay.appendChild(matchDiv);
+      } else {
+        alert('No matching book found in the new bookshelf.');
+      }
+
+    } catch (error) {
+      console.error(error);
+      alert('An error occurred while finding the match.');
+    } finally {
+      document.getElementById('newImageLoading').classList.remove('active');
+    }
+  }
+</script>
+</body>
+</html>

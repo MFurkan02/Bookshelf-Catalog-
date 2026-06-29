@@ -1,0 +1,13 @@
+# --- Local Testing Data ---
+bookshelf/
+
+# --- Flask Production Uploads & Caching ---
+static/uploads/*
+
+# --- Python Environment & Compiled Files ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Environment Variables ---
+.env

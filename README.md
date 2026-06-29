@@ -112,27 +112,20 @@ This separation allows brightness correction without altering chromatic structur
 
 The global luminance mean is calculated:
 
-[
-\mu = mean(L^*)
-]
+μ = mean(L*)
 
 If:
 
-* (\mu < 90) → image considered underexposed
-* (\mu > 150) → image considered overexposed
+μ < 90   → underexposed image
+μ > 150  → overexposed image
 
-Then a correction delta is applied:
+Then a correction delta is then applied:
 
-[
-\Delta L = 120 - \mu
-]
+ΔL = 120 - μ
 
 Final normalized luminance:
 
-[
-L^*_{adjusted} =
-\min(\max(L^* + \Delta L, 0), 255)
-]
+L*adjusted = min(max(L* + ΔL, 0), 255)
 
 ---
 
@@ -223,14 +216,12 @@ High-precision fallback matcher using:
 
 To eliminate ambiguous matches:
 
-[
-\frac{d_1}{d_2} < 0.7
-]
+d1 / d2 < 0.7
 
 Where:
 
-* (d_1) = nearest neighbor distance
-* (d_2) = second nearest neighbor distance
+d1 → nearest neighbor distance
+d2 → second nearest neighbor distance
 
 ✅ Reduces false positives
 ✅ Improves structural consistency

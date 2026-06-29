@@ -1,93 +1,335 @@
 # 📚 Bookshelf Catalog
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-Framework-lightgrey.svg)](https://flask.palletsprojects.com/)
-[![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-green.svg)](https://opencv.org/)
-[![Roboflow](https://img.shields.io/badge/Roboflow-Inference%20API-orange.svg)](https://roboflow.com/)
+<div align="center">
 
-A full-stack, event-driven Computer Vision platform engineered to digitize, segment, and track non-rigid physical configurations of book spines across discrete time intervals. The core system maps spatial coordinate deviations between modified states, executing real-time object re-localization via a cascading heuristic-and-deterministic pixel matching pipeline.
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge\&logo=python)
+![Flask](https://img.shields.io/badge/Flask-Framework-black?style=for-the-badge\&logo=flask)
+![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-green?style=for-the-badge\&logo=opencv)
+![Roboflow](https://img.shields.io/badge/Roboflow-Inference%20API-orange?style=for-the-badge)
+
+### Event-Driven Computer Vision Platform for Bookshelf Digitization & Spatial Re-Localization
+
+A full-stack computer vision system engineered to digitize, segment, track, and re-localize book spines across temporal image states using deep learning inference and classical feature-matching pipelines.
+
+</div>
 
 ---
 
-## 🔬 Technical Deep Dive & Algorithmic Mechanics
+# Overview
 
-### 1. Dynamic Luminance Normalization (CIE L\*a\*b\* Space)
-To stabilize deep-learning object detection against uneven lighting, shadows, and camera exposure shifts, images are processed through a non-destructive adaptive brightness pipeline prior to inference:
-* **Color Space Shift:** The image is translated from non-linear BGR to the perceptually uniform CIE L\*a\*b\* color space to isolate structural luminance ($L^*$) from chromaticity ($a^*, b^*$).
-* **Mathematical Vector Clipping:** The global mean ($\mu$) of the luminance channel is calculated. If it drops below the absolute dark barrier (90) or exceeds the bright ceiling (150), a linear correction delta ($\Delta L = 120 - \mu$) is applied across the matrix:
+Bookshelf Catalog is a hybrid deep-learning + classical computer vision platform designed to detect structural changes inside bookshelf configurations.
 
-$$\mathbf{L}_{\text{adjusted}}^{*} = \min(\max(\mathbf{L}^{*} + \Delta L, 0), 255)$$
+The system performs:
 
-* **Re-merging:** Channels are reconstructed and mapped back to the BGR domain, preserving underlying chromatic definitions while maximizing contrast uniformity.
+* 📖 Book spine detection & segmentation
+* 🧠 Spatial coordinate tracking
+* 🔄 Real-time object re-localization
+* ⚡ Multi-stage feature matching
+* 🧵 Concurrent asynchronous processing
+* 💾 Deterministic cache acceleration
 
-### 2. Cascading Region-Of-Interest (ROI) Cross-Matching Engine
-When an index is targeted in the source frame, the matcher isolates the target sub-matrix and routes candidate coordinates through a descending complexity matrix filter to preserve compute cycles:
+The architecture combines:
+
+| Layer              | Technology             |
+| ------------------ | ---------------------- |
+| Backend API        | Flask                  |
+| Computer Vision    | OpenCV                 |
+| Object Detection   | Roboflow Inference API |
+| Concurrency        | ThreadPoolExecutor     |
+| State Persistence  | SHA-256 + Pickle Cache |
+| Feature Matching   | ORB + SIFT             |
+| Histogram Analysis | Bhattacharyya Distance |
+
+---
+
+# 🧠 Core Architecture
 
 ```text
-       [Target Sub-Matrix Node]
-                  │
-                  ▼
-┌────────────────────────────────────────────────────────┐
-│ Tier 1: Bhattacharyya Color Histogram Space Filter     │
-│ - Evaluates normalized 3D color distribution matrices  │
-│ - Computational Complexity: O(N)                       │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-             Is Distance Metric <= 0.6?
-                           ├───► [NO]  ──► Fast-Reject Node
-                           └───► [YES]
-                                   │
-                                   ▼
-┌────────────────────────────────────────────────────────┐
-│ Tier 2: Parallelized Binary Feature Alignment (ORB)    │
-│ - Computes FAST keypoints & modified BRIEF descriptors │
-│ - Intensity-weighted centroid orientation tracking     │
-│ - Matching Evaluator: Hamming Distance Matrix via Brute│
-│ - Operational Complexity: O(K log K)                   │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-             Are Good Matches Count >= 10?
-                           ├───► [YES] ──► Target Match Registered
-                           └───► [NO]
-                                   │
-                                   ▼
-┌────────────────────────────────────────────────────────┐
-│ Tier 3: Gradient Distribution Fallback (SIFT)          │
-│ - Scale-space extrema detection via DoG convolution    │
-│ - 128-dimensional orientation vector assignment        │
-│ - Feature Matching Evaluator: FLANN KD-Tree Search     │
-│ - Mathematical Fallback Validation: Lowe's Ratio Test  │
-└────────────────────────────────────────────────────────┘
-
-* **Lowe's Ratio Test Validation:** SIFT keypoint matches are verified by evaluating the closest neighbor distance ratio against the second-closest neighbor ($d_1 / d_2 < 0.7$), discarding ambiguous background structures.
-
-### 3. Asynchronous Task Concurrency & Memory Gateways
-* **ThreadPool Worker Pool:** To bypass block-stalls during high-dimensional cross-matching across dense arrays ($M \times N$ keypoint combinations), operations are partitioned dynamically across an asynchronous `ThreadPoolExecutor`.
-* **State Verification Caching:** Images are uniquely indexed using deterministic `SHA-256` checksums of their binary payloads. Bounding box coordinates returned from Roboflow are serialized via `pickle` into a disk-backed dictionary map.
-* **Thread Mutex Lock:** Access to the serialization workspace is isolated via a mutual exclusion primitive (`threading.Lock()`), ensuring atomic write states during concurrent HTTP worker access cycles.
+[Web UI Multipart Stream]
+               │
+               ▼
+[L-Channel Equalization Pipeline]
+               │
+               ▼
+[Dynamic Aspect Ratio Resizer]
+               │
+               ▼
+[SHA-256 Image Fingerprinting]
+               │
+        ┌──────┴──────┐
+        │             │
+        ▼             ▼
+   [Cache Hit]    [Cache Miss]
+        │             │
+        ▼             ▼
+[Coordinate Load]  [Roboflow Inference]
+        │             │
+        └──────┬──────┘
+               ▼
+     [Inverse Scaling Transform]
+               │
+               ▼
+[Interactive Boundary Rendering UI]
+               │
+               ▼
+[User Target Selection]
+               │
+               ▼
+[ROI Cross-Matching Engine]
+               │
+        ┌──────┴──────┐
+        ▼             ▼
+   [ORB Match]    [SIFT Fallback]
+        │             │
+        └──────┬──────┘
+               ▼
+      [Final Object Re-Localization]
+```
 
 ---
 
-## 🛠 Multi-Tier Structural Pipeline
+# 🔬 Algorithmic Deep Dive
 
-The system coordinates deep learning abstractions, reactive UI binding, and classic computer vision heuristics through a unified processing flow:
+# 1️⃣ Dynamic Luminance Normalization
 
-[Web UI Multipart Stream] ──► [L-Channel Equalization Shift] ──► [Dynamic Aspect Ratio Shrinkage]
-                                                                             │
-                                                                             ▼
-[Thread-Safe Local Cache] ◄── [Deterministic SHA256 Hashing] ◄───────────────┤
-         │
-         ├───► [Cache Hit]  ──► Deserialization of Coordinate List (0ms Overhead)
-         │
-         └───► [Cache Miss] ──► [Roboflow API Inference Topology] ──► [Inverse Scaling Transform]
-                                                                             │
-                                                                             ▼
-[Interactive Web Canvas Interface] ◄─────────────────────────────────────────┘
-(Asynchronous Relative Boundary Plotting Engine)
-         │
-         ▼ [User Selection Pointer Dispatch]
-[3D Bhattacharyya Color Histogram Validation Filter]
-         │
-         ├───► [Passes] ──► [Parallelized ORB Keypoint Cross-Check] ──► Structural Highlight Alignment
-         │
-         └───► [Fails]  ──► [High-Dimensional SIFT Fallback Engine]  ──► Lowe's Ratio Score Render
+To stabilize inference performance under inconsistent lighting conditions, images are normalized using the perceptually uniform **CIE L*a*b*** color space.
+
+## Pipeline
+
+### • Color Space Transformation
+
+The input image is converted from **BGR → LAB** to isolate luminance:
+
+* **L*** → Lightness
+* **a*** → Green ↔ Red spectrum
+* **b*** → Blue ↔ Yellow spectrum
+
+This separation allows brightness correction without altering chromatic structure.
+
+---
+
+### • Adaptive Brightness Correction
+
+The global luminance mean is calculated:
+
+[
+\mu = mean(L^*)
+]
+
+If:
+
+* (\mu < 90) → image considered underexposed
+* (\mu > 150) → image considered overexposed
+
+Then a correction delta is applied:
+
+[
+\Delta L = 120 - \mu
+]
+
+Final normalized luminance:
+
+[
+L^*_{adjusted} =
+\min(\max(L^* + \Delta L, 0), 255)
+]
+
+---
+
+### • Reconstruction
+
+The corrected luminance channel is merged back with chromatic channels and transformed back to BGR space.
+
+✅ Preserves color integrity
+✅ Stabilizes inference confidence
+✅ Reduces illumination variance
+
+---
+
+# 2️⃣ Cascading ROI Cross-Matching Engine
+
+The re-localization engine uses a cascading multi-stage validation pipeline to minimize computational overhead while maximizing matching accuracy.
+
+---
+
+## 🔹 Tier 1 — Bhattacharyya Histogram Filter
+
+Fast probabilistic filtering based on normalized color distribution similarity.
+
+### Properties
+
+* 3D color histogram comparison
+* O(N) computational complexity
+* Early rejection optimization
+
+### Validation Condition
+
+```text
+Bhattacharyya Distance <= 0.6
+```
+
+If failed:
+
+```text
+→ Immediate Fast-Reject
+```
+
+---
+
+## 🔹 Tier 2 — ORB Feature Alignment
+
+Primary feature-matching layer using:
+
+* FAST keypoint detection
+* Rotated BRIEF descriptors
+* Hamming-distance brute-force matching
+
+### Complexity
+
+```text
+O(K log K)
+```
+
+### Validation Rule
+
+```text
+Good Matches >= 10
+```
+
+If successful:
+
+```text
+→ Target Match Registered
+```
+
+Otherwise:
+
+```text
+→ Escalate to SIFT Fallback
+```
+
+---
+
+## 🔹 Tier 3 — SIFT Fallback Engine
+
+High-precision fallback matcher using:
+
+* Difference of Gaussian (DoG)
+* Scale-space extrema detection
+* 128D orientation descriptors
+* FLANN KD-Tree nearest-neighbor search
+
+### Lowe's Ratio Test
+
+To eliminate ambiguous matches:
+
+[
+\frac{d_1}{d_2} < 0.7
+]
+
+Where:
+
+* (d_1) = nearest neighbor distance
+* (d_2) = second nearest neighbor distance
+
+✅ Reduces false positives
+✅ Improves structural consistency
+✅ Preserves spatial reliability
+
+---
+
+# ⚡ Concurrency & Memory Optimization
+
+## 🧵 Asynchronous Parallelism
+
+The system distributes computationally expensive matching operations using:
+
+```python
+ThreadPoolExecutor
+```
+
+Benefits:
+
+* Parallel ROI processing
+* Reduced blocking latency
+* Improved throughput under dense feature maps
+
+---
+
+## 💾 Deterministic Cache Layer
+
+Inference responses are cached using:
+
+```text
+SHA-256(image_binary_payload)
+```
+
+Stored data includes:
+
+* Bounding boxes
+* Detection metadata
+* Spatial coordinates
+
+Serialized via:
+
+```python
+pickle
+```
+
+---
+
+## 🔒 Thread-Safe Serialization
+
+Concurrent disk access is protected with:
+
+```python
+threading.Lock()
+```
+
+Ensuring:
+
+* Atomic write operations
+* Consistent cache states
+* Race-condition prevention
+
+---
+
+# 🛠 Tech Stack
+
+| Category          | Technology         |
+| ----------------- | ------------------ |
+| Backend           | Flask              |
+| Vision Processing | OpenCV             |
+| Detection API     | Roboflow           |
+| Concurrency       | concurrent.futures |
+| Hashing           | hashlib            |
+| Serialization     | pickle             |
+| Synchronization   | threading.Lock     |
+| Feature Detection | ORB / SIFT         |
+
+---
+
+# 📈 Performance Strategy
+
+The platform prioritizes computational efficiency through:
+
+* Cascading validation filters
+* Early candidate rejection
+* Multi-threaded feature analysis
+* Persistent inference caching
+* Resolution-aware scaling
+* Adaptive luminance normalization
+
+---
+
+# 🎯 Key Capabilities
+
+✅ Real-time bookshelf tracking
+✅ Deep-learning assisted localization
+✅ Robust low-light compensation
+✅ High-dimensional feature matching
+✅ Concurrent asynchronous execution
+✅ Deterministic state caching
+✅ Structural object re-identification
+
+---

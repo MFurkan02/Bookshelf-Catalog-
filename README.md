@@ -125,7 +125,7 @@ Then a correction delta is then applied:
 
 Final normalized luminance:
 
-L*adjusted = min(max(L* + ΔL, 0), 255)
+*adjusted = min(max(L* + ΔL, 0), 255)
 
 ---
 

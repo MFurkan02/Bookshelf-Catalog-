@@ -1,3 +1,17 @@
+"""
+🗂️ PROJECT SANDBOX / EXPERIMENTAL UTILITY
+Course Project: Bookshelf Catalog System
+
+PURPOSE:
+Initial monolithic functional prototype showcasing the core Flask API, Roboflow inference layer, 
+and cascading ORB/SIFT feature matchers.
+
+STATUS: 
+Archived in Sandbox. Replaced and upgraded by the production-ready `app.py`, which integrates 
+advanced production patterns including SHA-256 deterministic caching, thread-safe memory gates, 
+and input matrix downscaling.
+"""
+
 from flask import Flask, request, jsonify, render_template
 import cv2
 import numpy as np

@@ -13,30 +13,31 @@ A full-stack, event-driven Computer Vision platform engineered to digitize, segm
 
 ### 1. Dynamic Luminance Normalization (CIE L\*a\*b\* Space)
 To stabilize deep-learning object detection against uneven lighting, shadows, and camera exposure shifts, images are processed through a non-destructive adaptive brightness pipeline prior to inference:
-* **Color Space Shift:** The image is translated from non-linear $BGR$ to the perceptually uniform $CIE\ L^*a^*b^*$ color space to isolate structural luminance ($L^*$) from chromaticity ($a^*, b^*$).
-* **Mathematical Vector Clipping:** The global mean ($\mu_{L^*}$) of the luminance channel is calculated. If $\mu_{L^*}$ drops below the absolute dark barrier ($90$) or exceeds the bright ceiling ($150$), a linear correction delta ($\Delta L = 120 - \mu_{L^*}$) is applied across the matrix:
+* **Color Space Shift:** The image is translated from non-linear BGR to the perceptually uniform CIE L\*a\*b\* color space to isolate structural luminance ($L^*$) from chromaticity ($a^*, b^*$).
+* **Mathematical Vector Clipping:** The global mean ($\mu$) of the luminance channel is calculated. If it drops below the absolute dark barrier (90) or exceeds the bright ceiling (150), a linear correction delta ($\Delta L = 120 - \mu$) is applied across the matrix:
 
-$$\mathbf{L}^*_{\text{adjusted}} = \min(\max(\mathbf{L}^* + \Delta L, 0), 255)$$
+$$\mathbf{L}_{\text{adjusted}}^{*} = \min(\max(\mathbf{L}^{*} + \Delta L, 0), 255)$$
 
-* **Re-merging:** Channels are reconstructed and mapped back to the $BGR$ domain, preserving underlying chromatic definitions while maximizing contrast uniformity.
+* **Re-merging:** Channels are reconstructed and mapped back to the BGR domain, preserving underlying chromatic definitions while maximizing contrast uniformity.
 
 ### 2. Cascading Region-Of-Interest (ROI) Cross-Matching Engine
 When an index is targeted in the source frame, the matcher isolates the target sub-matrix and routes candidate coordinates through a descending complexity matrix filter to preserve compute cycles:
 
-[Target Sub-Matrix Node]
-│
-▼
+```text
+       [Target Sub-Matrix Node]
+                  │
+                  ▼
 ┌────────────────────────────────────────────────────────┐
 │ Tier 1: Bhattacharyya Color Histogram Space Filter     │
 │ - Evaluates normalized 3D color distribution matrices  │
 │ - Computational Complexity: O(N)                       │
 └──────────────────────────┬─────────────────────────────┘
-│
-Is Distance Metric <= 0.6?
-├───► [NO]  ──► Fast-Reject Node
-└───► [YES]
-│
-▼
+                           │
+             Is Distance Metric <= 0.6?
+                           ├───► [NO]  ──► Fast-Reject Node
+                           └───► [YES]
+                                   │
+                                   ▼
 ┌────────────────────────────────────────────────────────┐
 │ Tier 2: Parallelized Binary Feature Alignment (ORB)    │
 │ - Computes FAST keypoints & modified BRIEF descriptors │
@@ -44,12 +45,12 @@ Is Distance Metric <= 0.6?
 │ - Matching Evaluator: Hamming Distance Matrix via Brute│
 │ - Operational Complexity: O(K log K)                   │
 └──────────────────────────┬─────────────────────────────┘
-│
-Are Good Matches Count >= 10?
-├───► [YES] ──► Target Match Registered
-└───► [NO]
-│
-▼
+                           │
+             Are Good Matches Count >= 10?
+                           ├───► [YES] ──► Target Match Registered
+                           └───► [NO]
+                                   │
+                                   ▼
 ┌────────────────────────────────────────────────────────┐
 │ Tier 3: Gradient Distribution Fallback (SIFT)          │
 │ - Scale-space extrema detection via DoG convolution    │
@@ -57,7 +58,6 @@ Are Good Matches Count >= 10?
 │ - Feature Matching Evaluator: FLANN KD-Tree Search     │
 │ - Mathematical Fallback Validation: Lowe's Ratio Test  │
 └────────────────────────────────────────────────────────┘
-
 
 * **Lowe's Ratio Test Validation:** SIFT keypoint matches are verified by evaluating the closest neighbor distance ratio against the second-closest neighbor ($d_1 / d_2 < 0.7$), discarding ambiguous background structures.
 
@@ -72,7 +72,6 @@ Are Good Matches Count >= 10?
 
 The system coordinates deep learning abstractions, reactive UI binding, and classic computer vision heuristics through a unified processing flow:
 
-```text
 [Web UI Multipart Stream] ──► [L-Channel Equalization Shift] ──► [Dynamic Aspect Ratio Shrinkage]
                                                                              │
                                                                              ▼

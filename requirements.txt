@@ -1,3 +1,17 @@
-flask==2.0.1
-scikit-learn==1.0.2
-werkzeug==2.0.1
+# --- Web Framework & Server ---
+Flask>=3.0.0
+Werkzeug>=3.0.0
+
+# --- Computer Vision & Image Processing ---
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# --- Deep Learning Cloud API / Model Infrastructure ---
+inference-sdk>=0.9.0
+
+# --- Machine Learning & Signal Processing (Sandbox Support) ---
+scikit-learn>=1.3.0
+scipy>=1.11.0
+
+# --- Security & Environment Configurations ---
+python-dotenv>=1.0.0
